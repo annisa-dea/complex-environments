@@ -2,7 +2,8 @@
 *.h5ad
 *.h5
 *.mtx
-data/raw/
+data/raw/*
+!data/raw/README.md
 
 # System files
 .DS_Store
