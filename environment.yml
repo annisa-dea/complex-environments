@@ -1,0 +1,17 @@
+# environment.yml
+name: scales
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - ipykernel
+  - scanpy
+  - anndata
+  - numpy
+  - pandas
+  - scipy
+  - matplotlib
+  - scikit-learn
+  - h5py
+  - umap-learn
+  - seaborn
