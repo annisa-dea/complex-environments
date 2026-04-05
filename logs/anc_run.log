@@ -1,0 +1,6 @@
+/Users/annisa/Desktop/dea-et-al-2026/scales/preprocess.py:124: FutureWarning: The default of observed=False is deprecated and will be changed to True in a future version of pandas. Pass observed=False to retain current behavior or observed=True to adopt the future default and silence this warning.
+  obs.groupby("condition")
+/Users/annisa/micromamba/envs/scales/lib/python3.11/functools.py:909: UserWarning: zero-centering a sparse array/matrix densifies it.
+  return dispatch(args[0].__class__)(*args, **kw)
+/Users/annisa/Desktop/dea-et-al-2026/scales/umap.py:108: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  prism_df = pd.concat(blocks, ignore_index=True)

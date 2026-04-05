@@ -46,12 +46,12 @@ from scales.micdf      import (
 )
 
 # Path to the metadata file — update if repo layout changes
-METADATA_PATH = Path(__file__).parent / "data" / "ConditionsMatrixCombined.csv"
+METADATA_PATH = Path(__file__).parent / "data" / "metadata" / "ConditionsMatrixCombined.csv"
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="SCALES scRNA-seq pipeline: h5 files → figures + CSVs"
+        description="SCALES scRNA-seq pipeline: h5 files directory to figures and CSVs"
     )
     parser.add_argument(
         "--ancestry",
