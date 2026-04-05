@@ -39,18 +39,19 @@ from scales.preprocess import preprocess
 from scales.umap       import run_umap
 from scales.micdf      import (
     run_svd_folds,
+    plot_scree,
     compute_micdf,
     plot_micdf,
     top_genes_per_pc,
 )
 
 # Path to the metadata file — update if repo layout changes
-METADATA_PATH = Path(__file__).parent / "data" / "metadata" / "ConditionsMatrixCombined.csv"
+METADATA_PATH = Path(__file__).parent / "data" / "ConditionsMatrixCombined.csv"
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="SCALES scRNA-seq pipeline: takes in h5 file directory, generates figures and CSVs"
+        description="SCALES scRNA-seq pipeline: h5 files → figures + CSVs"
     )
     parser.add_argument(
         "--ancestry",
@@ -118,6 +119,14 @@ def main():
         run_svd_folds(adata, output_dir=svd_dir)
     else:
         print("\n═══ Step 4: SVD (skipped — loading existing outputs) ═══")
+
+    # ── Step 4b: Scree plot ───────────────────────────────────────────────────────
+    print("\n═══ Step 4b: Scree plot ═══")
+    plot_scree(
+        svd_dir    = svd_dir,
+        output_dir = out_dir / "svd",
+        n_pcs      = 50,
+    )
 
     # ── Step 5: MICDF ────────────────────────────────────────────────────────
     print("\n═══ Step 5: Compute MICDF ═══")

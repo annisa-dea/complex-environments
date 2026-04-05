@@ -29,6 +29,7 @@ Usage
 """
 
 import numpy as np
+import pandas as pd
 import scipy.sparse
 import anndata as ad
 import scanpy as sc
@@ -117,17 +118,30 @@ def preprocess(
           f"({100 * (n_before - n_after) / n_before:.1f}% removed)")
     print(f"[preprocess] Genes retained: {adata.n_vars}")
 
-    # ── Per-condition summary ─────────────────────────────────────────────────
+    # ── Post-filter per-condition summary + CSV ──────────────────────────────
+    obs = adata.obs.copy()
     summary = (
-        adata.obs
-        .groupby("condition")[["n_genes", "total_counts"]]
-        .agg(n_cells=("n_genes", "count"),
-             median_genes=("n_genes", "median"),
-             median_umi=("total_counts", "median"))
-        .round(1)
+        obs.groupby("condition")
+        .apply(lambda g: pd.Series({
+            "n_cells"              : len(g),
+            "min_genes"            : g["n_genes"].min(),
+            "mean_genes"           : g["n_genes"].mean().round(1),
+            "median_genes"         : g["n_genes"].median(),
+            "max_genes"            : g["n_genes"].max(),
+            "median_umi"           : g["total_counts"].median(),
+            "pct_cells_above_500g" : (100 * (g["n_genes"] >= 500).sum() / len(g)).round(1),
+        }), include_groups=False)
+        .reset_index()
     )
     print("\n[preprocess] Post-filter per-condition summary:")
-    print(summary.to_string())
+    print(summary.to_string(index=False))
+
+    if plot_dir is not None:
+        plot_dir = Path(plot_dir)
+        plot_dir.mkdir(parents=True, exist_ok=True)
+        csv_path = plot_dir / "qc_postfilter_per_condition.csv"
+        summary.to_csv(csv_path, index=False)
+        print(f"[preprocess] Post-filter CSV saved -> {csv_path}")
 
     # ── Normalization ────────────────────────────────────────────────────────
     sc.pp.normalize_total(adata, target_sum=1e4)
@@ -173,8 +187,9 @@ def _plot_qc(
     stage: str,
     plot_dir: str | Path | None,
 ) -> None:
-    fig, axes = plt.subplots(1, 3, figsize=(14, 4))
+    fig, axes = plt.subplots(1, 4, figsize=(18, 4))
 
+    # Panel 1: genes per cell
     axes[0].hist(adata.obs["n_genes"], bins=100,
                  color="#4C72B0", edgecolor="none")
     axes[0].axvline(MIN_GENES, color="red",    linestyle="--", linewidth=1,
@@ -186,6 +201,7 @@ def _plot_qc(
     axes[0].legend(fontsize=8)
     axes[0].spines[["top", "right"]].set_visible(False)
 
+    # Panel 2: UMI counts per cell
     axes[1].hist(adata.obs["total_counts"], bins=100,
                  color="#4C72B0", edgecolor="none")
     axes[1].axvline(MIN_COUNTS, color="red", linestyle="--", linewidth=1,
@@ -195,6 +211,7 @@ def _plot_qc(
     axes[1].legend(fontsize=8)
     axes[1].spines[["top", "right"]].set_visible(False)
 
+    # Panel 3: genes vs UMI scatter
     axes[2].scatter(
         adata.obs["total_counts"],
         adata.obs["n_genes"],
@@ -207,6 +224,18 @@ def _plot_qc(
     axes[2].set_ylabel("Genes per cell")
     axes[2].spines[["top", "right"]].set_visible(False)
 
+    # Panel 4: cells per condition (bar chart)
+    condition_counts = adata.obs["condition"].value_counts().sort_index()
+    axes[3].barh(condition_counts.index, condition_counts.values,
+                 color="#4C72B0", edgecolor="none", height=0.7)
+    axes[3].axvline(1000, color="red", linestyle="--", linewidth=0.8,
+                    label="n=1000")
+    axes[3].set_xlabel("Cells")
+    axes[3].set_ylabel("")
+    axes[3].legend(fontsize=8)
+    axes[3].tick_params(axis="y", labelsize=7)
+    axes[3].spines[["top", "right"]].set_visible(False)
+
     plt.suptitle(f"QC distributions - {stage}", fontsize=11)
     plt.tight_layout()
 
@@ -215,5 +244,4 @@ def _plot_qc(
         plot_dir.mkdir(parents=True, exist_ok=True)
         fig.savefig(plot_dir / f"qc_{stage}.pdf", bbox_inches="tight", dpi=150)
 
-    #plt.show()
     plt.close(fig)

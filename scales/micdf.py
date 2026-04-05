@@ -49,7 +49,7 @@ import spipy as sp
 # Edit here if you need to add or remove conditions.
 # 'shuffled' is always included as the null reference and is NOT plotted.
 
-ENV_LIST = ["dglucose", "rich_media", "ros", "30c", "osmolytes"]
+ENV_LIST = ["dglucose", "rich_media", "ros", "30c", "osmolytes", "ancestry"]
 SHUFFLED_LABEL = "shuffled"
 
 # Color map for plotting — add entries here if ENV_LIST is extended
@@ -59,15 +59,16 @@ ENV_COLORS = {
     "ros"       : "#9467bd",  # purple
     "30c"       : "#d62728",  # red
     "osmolytes" : "#1f77b4",  # blue
+    "ancestry"  : "#000000",  # black
 }
 
 # SVD / MI parameters
 N_FOLDS       = 6
 N_WINDOW      = 3     # number of PCs per spectral window
-N_WINDOWS     = 25    # number of windows to compute (i.e. PCs 0..N_WINDOWS+N_WINDOW)
+N_WINDOWS     = 30    # number of windows to compute (i.e. PCs 0..N_WINDOWS+N_WINDOW)
 RANDOM_STATE  = 12345
 
-# False = pull log-norm HVG counts from adata.raw.X  <- correct default (ground truth)
+# False = pull log-norm HVG counts from adata.raw.X, DEFAULT
 # True  = use z-scored adata.X (scaled PCA equivalent) — changes variance structure,
 #         not used in the published analysis
 SCALE_BEFORE_SVD = False
@@ -164,6 +165,99 @@ def run_svd_folds(
 
     print(f"[svd] SVD outputs saved → {output_dir}")
     return output_dir
+
+
+
+# ── 1b. SCREE PLOT ─────────────────────────────────────────────────────────────────────────────
+
+def plot_scree(
+    svd_dir: str | Path,
+    output_dir: str | Path | None = None,
+    n_pcs: int = 50,
+) -> plt.Figure:
+    """
+    Load per-fold singular values, average across folds, and plot the
+    eigenspectrum on both log and linear scales (matching Fig. 1E and S9A).
+
+    Singular values s are squared and normalized to sum to 1 to give
+    fraction of variance explained per PC, matching scanpy convention.
+
+    Parameters
+    ----------
+    svd_dir : str or Path
+        Directory containing svd_fold*.npz files from run_svd_folds().
+    output_dir : str or Path or None
+        If provided, saves scree_plot.pdf and scree_values.csv here.
+    n_pcs : int
+        Number of PCs to show on the linear-scale panel. Default 50.
+
+    Returns
+    -------
+    matplotlib Figure
+    """
+    svd_dir = Path(svd_dir)
+
+    # Load singular values from all folds and average
+    s_per_fold = []
+    for fold_i in range(N_FOLDS):
+        svd = np.load(svd_dir / f"svd_fold{fold_i}.npz")
+        s_per_fold.append(svd["s"])
+
+    # Truncate to shortest fold (cell counts differ slightly per fold)
+    min_len = min(len(s) for s in s_per_fold)
+    s_stack = np.stack([s[:min_len] for s in s_per_fold], axis=0)
+    s_mean = s_stack.mean(axis=0)
+    s_std  = s_stack.std(axis=0)
+
+    # Convert to variance explained: s^2 / sum(s^2)
+    var_explained = s_mean ** 2 / (s_mean ** 2).sum()
+    var_std_norm  = (2 * s_mean * s_std) / (s_mean ** 2).sum()
+
+    n_total = len(var_explained)
+    pcs = np.arange(1, n_total + 1)
+
+    # Save CSV
+    scree_df = pd.DataFrame({
+        "PC"              : pcs,
+        "variance_explained" : var_explained,
+        "std"             : var_std_norm,
+    })
+
+    if output_dir is not None:
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        scree_df.to_csv(output_dir / "scree_values.csv", index=False)
+        print(f"[scree] CSV saved -> {output_dir / 'scree_values.csv'}")
+
+    # Plot: log scale (all PCs) + linear scale (top n_pcs)
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+
+    # Log scale — all PCs
+    axes[0].scatter(pcs, var_explained * 100,
+                    s=8, color="#153057", alpha=0.7, rasterized=True)
+    axes[0].set_xscale("log")
+    axes[0].set_yscale("log")
+    axes[0].set_xlabel("Principal component")
+    axes[0].set_ylabel("Variance explained (%)")
+    axes[0].set_title("Eigenspectrum (log scale)")
+    axes[0].spines[["top", "right"]].set_visible(False)
+
+    # Linear scale — top n_pcs only
+    axes[1].scatter(pcs[:n_pcs], var_explained[:n_pcs] * 100,
+                    s=10, color="#153057", alpha=0.8)
+    axes[1].set_xlabel("Principal component")
+    axes[1].set_ylabel("Variance explained (%)")
+    axes[1].set_title(f"Eigenspectrum (top {n_pcs} PCs, linear scale)")
+    axes[1].spines[["top", "right"]].set_visible(False)
+
+    plt.tight_layout()
+
+    if output_dir is not None:
+        fig.savefig(output_dir / "scree_plot.pdf", bbox_inches="tight", dpi=150)
+        print(f"[scree] Plot saved -> {output_dir / 'scree_plot.pdf'}")
+
+    plt.close(fig)
+    return fig
 
 
 # ── 2. COMPUTE MICDF ──────────────────────────────────────────────────────────
@@ -322,7 +416,7 @@ def plot_micdf(
         ax.fill_between(x, lower, upper, color=color, alpha=0.2)
 
     ax.set_xlabel("Spectral window (by 3 PCs)")
-    ax.set_ylabel("Cumulative MI CDF")
+    ax.set_ylabel("Mutual Information CDF")
     ax.set_xlim(0, N_WINDOWS)
     ax.set_ylim(0, 1)
     ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left", fontsize=9)
