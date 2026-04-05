@@ -1,49 +1,94 @@
-# Physiological architecture and evolutionary origins of cellular adaptability
+# SCALES Analysis
 
-**Dea et al., 2026** | Pincus & Raman Labs, University of Chicago
+Reproducible analysis pipeline for the SCALES scRNA-seq paper.  
+Goes from a directory of CellRanger `.h5` files to all figures and CSVs in the paper.
 
-This repository contains analysis notebooks, processed data, and metadata 
-supporting the findings in our paper. We performed single-cell transcriptional 
-profiling of budding yeast (*S. cerevisiae*) across 20 complex environments 
-before and after long-term laboratory evolution for increased osmotolerance, 
-revealing a hierarchical architecture of cellular adaptability shaped by 
-evolutionary history.
+## Repository layout
 
-## Repository structure
-
-your-paper-repo/
+```
+scales-analysis/
+├── scales/                    # importable package
+│   ├── merge.py               # merge_h5()
+│   ├── preprocess.py          # preprocess()
+│   ├── umap.py                # run_umap()
+│   └── micdf.py               # run_svd_folds(), compute_micdf(),
+│                              # plot_micdf(), top_genes_per_pc()
+├── exploratory/               # original development notebooks (read-only reference)
+│   ├── 02_merge_h5.ipynb
+│   ├── 03_preprocess_anc.ipynb
+│   └── 06_generate_micdf_evo.ipynb
 ├── data/
-│   ├── raw/              # CellRanger output (h5 files, barcodes) — not tracked
-│   ├── processed/        # Processed AnnData objects (.h5ad)
-│   └── metadata/         # Sample and condition metadata
-└── notebooks/
-    ├── 01_cellranger.md          # CellRanger pipeline documentation
-    ├── 02_cell_calling.ipynb     # Adaptive cell calling
-    ├── 03_merge_metadata.ipynb   # Merging h5 files, QC filtering, metadata
-    ├── 04_preprocess_anc.ipynb   # Ancestral strain: QC, PCA, UMAP
-    ├── 05_preprocess_evo.ipynb   # Evolved strain: QC, PCA, UMAP
-    ├── 06_combined_preprocess.ipynb  # Combined SVD analysis
-    └── 07_micdf_analysis.ipynb   # SCALES/MICDF: environmental hierarchy
+│   └── ConditionsMatrixCombined.csv
+├── run_pipeline.py            # top-level runner
+└── environment.yml
+```
 
-## Data availability
+## Quickstart
 
-Raw scRNA-seq and bulk RNA-seq data are deposited in NCBI GEO under 
-accession [GSEXXXXXX]. Processed count matrices and metadata are available 
-in this repository.
-
-## Requirements
-
-See `environment.yml` for full dependencies. Key packages:
-- Python 3.x
-- scanpy, anndata, numpy, pandas, matplotlib, seaborn, spipy (from Raman Lab repo)
-
-## Installation
-
+```bash
 conda env create -f environment.yml
-conda activate <env-name>
+conda activate scales
 
-## Contact
+# Ancestral dataset
+python run_pipeline.py \
+    --ancestry anc \
+    --h5_dir /path/to/anc_h5 \
+    --out_dir results/anc
 
-Annisa Dea — annisa@uchicago.edu 
-David Pincus — pincus@uchicago.edu  
-Arjun Raman — araman@bsd.uchicago.edu
+# Evolved dataset
+python run_pipeline.py \
+    --ancestry evo \
+    --h5_dir /path/to/evo_h5 \
+    --out_dir results/evo
+```
+
+### Re-running only MICDF (SVD already done)
+
+```bash
+python run_pipeline.py \
+    --ancestry evo \
+    --h5_dir /path/to/evo_h5 \
+    --out_dir results/evo \
+    --skip_svd
+```
+
+## Output layout
+
+```
+results/anc/
+├── merged.h5ad
+├── processed.h5ad
+├── qc/
+│   └── qc_prefilter.pdf
+├── umap/
+│   ├── umap_condition.pdf
+│   └── umap_coords.csv
+├── svd/
+│   ├── svd_fold0.npz  ..  svd_fold5.npz
+│   ├── hvg_gene_names.csv
+│   └── fold_assignments.csv
+└── micdf/
+    ├── micdf_mean.csv
+    ├── micdf_ste.csv
+    ├── micdf_plot.pdf
+    └── top_genes_pc0-4.csv
+```
+
+## Customizing ENV_LIST or colors
+
+Open `scales/micdf.py` and edit the block at the top of the file:
+
+```python
+ENV_LIST = ["dglucose", "rich_media", "ros", "30c", "osmolytes"]
+
+ENV_COLORS = {
+    "dglucose"  : "#2ca02c",
+    "rich_media": "#ffdd00",
+    ...
+}
+```
+
+## Dependencies
+
+See `environment.yml`. Key packages: `scanpy`, `anndata`, `numpy`, `scipy`,
+`scikit-learn`, `pandas`, `matplotlib`, `spipy` (aramanlab/spipy).
