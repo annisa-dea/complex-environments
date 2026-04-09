@@ -4,12 +4,13 @@
   return dispatch(args[0].__class__)(*args, **kw)
 /Users/annisa/Desktop/dea-et-al-2026/scales/umap.py:108: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
   prism_df = pd.concat(blocks, ignore_index=True)
+[config] FULL_GENE_SVD = True (all genes, not just HVGs)
 
 ═══ Step 1: Merge h5 files ═══
 [merge] ancestry='anc' → 20 conditions selected
 [merge] Merged AnnData: 62348 cells x 7127 genes
 [merge] Conditions loaded: 20
-[merge] Saved → results/anc/merged.h5ad
+[merge] Saved → results/anc_fullgene/merged.h5ad
 
 ═══ Step 2: Preprocess ═══
 [preprocess] Input: 62348 cells x 7127 genes
@@ -41,33 +42,33 @@ anc_ypd-kcl-h2o2   5440.0      332.0      1076.3         960.5     3850.0      1
     anc_ypd-sorb   4236.0      323.0       869.8         679.5     3640.0      1286.0                  75.2
      anc_ypeg-30   3659.0      307.0      1225.5        1078.0     3265.0      2178.0                  87.4
      anc_ypeg-37   2260.0      226.0       757.2         675.0     3079.0      1113.0                  71.5
-[preprocess] Post-filter CSV saved -> results/anc/qc/qc_postfilter_per_condition.csv
+[preprocess] Post-filter CSV saved -> results/anc_fullgene/qc/qc_postfilter_per_condition.csv
 
 [preprocess] HVGs selected: 862
 
 [preprocess] Final AnnData: 62340 cells x 862 HVGs
-[preprocess] Saved -> results/anc/processed.h5ad
+[preprocess] Saved -> results/anc_fullgene/processed.h5ad
 
 ═══ Step 3: UMAP ═══
 [umap] Computing neighbors (n_neighbors=15, n_pcs=50)
 [umap] UMAP complete
 [umap] Plot saved → umap_condition.pdf
-[umap] CSV saved -> results/anc/umap/umap_coords.csv  (62340 rows)
-[umap] Prism CSV saved -> results/anc/umap/umap_prism.csv  (20 conditions, 62340 rows)
+[umap] CSV saved -> results/anc_fullgene/umap/umap_coords.csv  (62340 rows)
+[umap] Prism CSV saved -> results/anc_fullgene/umap/umap_prism.csv  (20 conditions, 62340 rows)
 
 ═══ Step 4: SVD per fold ═══
-[svd] Using unscaled log-norm HVG matrix from adata.raw.X
-[svd] Fold 0: 10390 cells × 862 HVGs
-[svd] Fold 1: 10390 cells × 862 HVGs
-[svd] Fold 2: 10390 cells × 862 HVGs
-[svd] Fold 3: 10390 cells × 862 HVGs
-[svd] Fold 4: 10390 cells × 862 HVGs
-[svd] Fold 5: 10390 cells × 862 HVGs
-[svd] SVD outputs saved → results/anc/svd
+[svd] Using full-gene log-norm matrix (6952 genes)
+[svd] Fold 0: 10390 cells × 6952 HVGs
+[svd] Fold 1: 10390 cells × 6952 HVGs
+[svd] Fold 2: 10390 cells × 6952 HVGs
+[svd] Fold 3: 10390 cells × 6952 HVGs
+[svd] Fold 4: 10390 cells × 6952 HVGs
+[svd] Fold 5: 10390 cells × 6952 HVGs
+[svd] SVD outputs saved → results/anc_fullgene/svd
 
 ═══ Step 4b: Scree plot ═══
-[scree] CSV saved -> results/anc/svd/scree_values.csv
-[scree] Plot saved -> results/anc/svd/scree_plot.pdf
+[scree] CSV saved -> results/anc_fullgene/svd/scree_values.csv
+[scree] Plot saved -> results/anc_fullgene/svd/scree_plot.pdf
 
 ═══ Step 5: Compute MICDF ═══
 [micdf] Fold 0 complete
@@ -76,63 +77,63 @@ anc_ypd-kcl-h2o2   5440.0      332.0      1076.3         960.5     3850.0      1
 [micdf] Fold 3 complete
 [micdf] Fold 4 complete
 [micdf] Fold 5 complete
-[micdf] CSVs saved → results/anc/micdf
+[micdf] CSVs saved → results/anc_fullgene/micdf
 
 ═══ Step 6: Plot MICDF ═══
-[plot] Figure saved → results/anc/micdf/micdf_plot.pdf
+[plot] Figure saved → results/anc_fullgene/micdf/micdf_plot.pdf
 
 ═══ Step 7: Top genes per PC ═══
-[top_genes] Saved → results/anc/micdf/top_genes_pc0-4.csv
- PC  rank      gene   loading
-  0     1      SSA1 -0.168076
-  0     2     RPL9A -0.163390
-  0     3   YNL208W -0.163080
-  0     4       AI1 -0.150295
-  0     5      HHT1 -0.148522
-  0     6      HTA1 -0.146020
-  0     7      CIS3 -0.142173
-  0     8   YIL053W -0.141251
-  0     9      HHT2 -0.139798
-  0    10      GAP1 -0.134382
-  1     1     HSP26  0.203715
-  1     2      CIS3 -0.196934
-  1     3      HTA2 -0.194303
-  1     4     RPL9A -0.191203
-  1     5   YIL053W -0.173201
-  1     6      DDR2  0.166972
-  1     7      HHF2 -0.160878
-  1     8      HTB2 -0.152996
-  1     9      ALD4  0.143804
-  1    10     SIP18  0.140243
-  2     1      ZRT1  0.244268
-  2     2      MET6  0.187050
-  2     3      OPI3  0.165531
-  2     4      ITR1  0.161311
-  2     5       AI1 -0.150840
-  2     6      ADH4  0.149382
-  2     7      DAL5  0.140148
-  2     8      INO1  0.139692
-  2     9      CYC1 -0.138822
-  2    10      MEP2  0.138556
-  3     1      NCW2 -0.239743
-  3     2      SHM2  0.234359
-  3     3 YMR122W-A -0.194719
-  3     4      CRH1 -0.169647
-  3     5     ADE13  0.158840
-  3     6      PUN1 -0.148913
-  3     7      HHF1  0.146579
-  3     8      PST1 -0.146575
-  3     9      HTA2  0.146063
-  3    10      GCV2  0.145789
-  4     1 YFR052C-A -0.179717
-  4     2      CTS1 -0.173110
-  4     3      HXT4 -0.168014
-  4     4      COX1  0.164816
-  4     5       AI1  0.155453
-  4     6      SSA1 -0.151989
-  4     7    NCE103  0.150386
-  4     8       AI2  0.148585
-  4     9     PHO84 -0.144404
-  4    10      GAP1  0.136866
+[top_genes] Saved → results/anc_fullgene/micdf/top_genes_pc0-4.csv
+ PC  rank     gene   loading
+  0     1     TDH3  0.117225
+  0     2    CCW12  0.103626
+  0     3     FBA1  0.097044
+  0     4     PDC1  0.096652
+  0     5     CWP2  0.091941
+  0     6     ENO2  0.089721
+  0     7 21S_RRNA  0.086972
+  0     8    CDC19  0.085188
+  0     9     ADH1  0.082119
+  0    10     GPM1  0.079956
+  1     1    HSP26 -0.093619
+  1     2    HSP12 -0.092721
+  1     3    RPL9A  0.089141
+  1     4    RPS31  0.084669
+  1     5     TDH1 -0.082381
+  1     6    RPS9B  0.081339
+  1     7   RPL18A  0.079314
+  1     8    RPS13  0.074160
+  1     9     RPS2  0.073672
+  1    10     SSA1 -0.073471
+  2     1 21S_RRNA -0.123592
+  2     2 15S_RRNA -0.106312
+  2     3     HOR7 -0.096805
+  2     4      AI1 -0.091519
+  2     5     SHM2  0.089859
+  2     6     OLI1 -0.087412
+  2     7   NCE103 -0.083442
+  2     8     DDR2 -0.081754
+  2     9     ADH2 -0.080463
+  2    10     CWP2 -0.080260
+  3     1     OLI1  0.150095
+  3     2 21S_RRNA  0.145074
+  3     3     COX1  0.132221
+  3     4      AI1  0.130270
+  3     5 15S_RRNA  0.119126
+  3     6      AI2  0.112696
+  3     7     DBP2  0.093269
+  3     8 AI5_BETA  0.092703
+  3     9      AI4  0.091283
+  3    10     NSR1  0.091282
+  4     1     AHP1 -0.121085
+  4     2     ZRT1 -0.119460
+  4     3     CIS3  0.119058
+  4     4     OPI3 -0.101782
+  4     5     MET6 -0.100513
+  4     6     INO1 -0.096283
+  4     7     CYC1  0.095774
+  4     8     PUT4 -0.087834
+  4     9     ALD6 -0.086794
+  4    10     CRH1  0.081552
 
-✓ Pipeline complete. All outputs in: results/anc
+✓ Pipeline complete. All outputs in: results/anc_fullgene

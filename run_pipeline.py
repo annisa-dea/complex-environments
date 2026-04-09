@@ -36,10 +36,9 @@ from pathlib import Path
 
 from scales.merge      import merge_h5
 from scales.preprocess import preprocess
-from scales.umap       import run_umap
+from scales.umap       import run_umap, plot_scree
 from scales.micdf      import (
     run_svd_folds,
-    plot_scree,
     compute_micdf,
     plot_micdf,
     top_genes_per_pc,
@@ -51,7 +50,7 @@ METADATA_PATH = Path(__file__).parent / "data" / "metadata" / "ConditionsMatrixC
 
 def main():
     parser = argparse.ArgumentParser(
-        description="SCALES scRNA-seq pipeline: h5 files directory to figures and CSVs"
+        description="SCALES scRNA-seq pipeline: h5 file directory to figures and CSVs"
     )
     parser.add_argument(
         "--ancestry",
@@ -79,9 +78,28 @@ def main():
         action="store_true",
         help="Skip SVD step and load existing svd/ outputs (for re-running MI only)",
     )
+    parser.add_argument(
+        "--scale_before_svd",
+        action="store_true",
+        help="Z-score genes before SVD (diagnostic; not used in published analysis)",
+    )
+    parser.add_argument(
+        "--full_gene_svd",
+        action="store_true",
+        help="Run SVD on all genes instead of HVGs only (diagnostic)",
+    )
     args = parser.parse_args()
 
     out_dir = Path(args.out_dir)
+
+    # Apply diagnostic SVD flags by overriding micdf module constants at runtime
+    import scales.micdf as _micdf
+    if args.scale_before_svd:
+        _micdf.SCALE_BEFORE_SVD = True
+        print("[config] SCALE_BEFORE_SVD = True (z-score before SVD)")
+    if args.full_gene_svd:
+        _micdf.FULL_GENE_SVD = True
+        print("[config] FULL_GENE_SVD = True (all genes, not just HVGs)")
 
     # ── Step 1: Merge ────────────────────────────────────────────────────────
     print("\n═══ Step 1: Merge h5 files ═══")
@@ -109,6 +127,8 @@ def main():
             output_dir = out_dir / "umap",
             color_by   = ["condition"],
         )
+        print("\n═══ Step 3b: Scree plot ═══")
+        plot_scree(adata, output_dir=out_dir / "umap")
     else:
         print("\n═══ Step 3: UMAP (skipped) ═══")
 
@@ -119,14 +139,6 @@ def main():
         run_svd_folds(adata, output_dir=svd_dir)
     else:
         print("\n═══ Step 4: SVD (skipped — loading existing outputs) ═══")
-
-    # ── Step 4b: Scree plot ───────────────────────────────────────────────────────
-    print("\n═══ Step 4b: Scree plot ═══")
-    plot_scree(
-        svd_dir    = svd_dir,
-        output_dir = out_dir / "svd",
-        n_pcs      = 50,
-    )
 
     # ── Step 5: MICDF ────────────────────────────────────────────────────────
     print("\n═══ Step 5: Compute MICDF ═══")
@@ -142,7 +154,11 @@ def main():
         mean_micdf,
         ste_micdf,
         output_path = out_dir / "micdf" / "micdf_plot.pdf",
-        title       = f"MICDF — {args.ancestry}",
+        title       = (
+            f"MICDF -- {args.ancestry}"
+            + (" [z-scored]" if args.scale_before_svd else "")
+            + (" [full-gene]" if args.full_gene_svd else "")
+        ),
     )
 
     # ── Step 7: Top genes per PC ─────────────────────────────────────────────

@@ -49,7 +49,7 @@ import spipy as sp
 # Edit here if you need to add or remove conditions.
 # 'shuffled' is always included as the null reference and is NOT plotted.
 
-ENV_LIST = ["dglucose", "rich_media", "ros", "30c", "osmolytes", "ancestry"]
+ENV_LIST = ["rich_media", "30c", "dglucose", "ros", "osmolytes"]
 SHUFFLED_LABEL = "shuffled"
 
 # Color map for plotting — add entries here if ENV_LIST is extended
@@ -59,19 +59,21 @@ ENV_COLORS = {
     "ros"       : "#9467bd",  # purple
     "30c"       : "#d62728",  # red
     "osmolytes" : "#1f77b4",  # blue
-    "ancestry"  : "#000000",  # black
 }
 
 # SVD / MI parameters
 N_FOLDS       = 6
 N_WINDOW      = 3     # number of PCs per spectral window
-N_WINDOWS     = 30    # number of windows to compute (i.e. PCs 0..N_WINDOWS+N_WINDOW)
+N_WINDOWS     = 40    # number of windows to compute — matches notebook range(40)
 RANDOM_STATE  = 12345
 
-# False = pull log-norm HVG counts from adata.raw.X, DEFAULT
-# True  = use z-scored adata.X (scaled PCA equivalent) — changes variance structure,
-#         not used in the published analysis
+# False = pull log-norm HVG counts from adata.raw.X
+# True  = pull ALL genes from adata.raw.X (DEFAULT — matches notebook ground truth)
 SCALE_BEFORE_SVD = False
+
+# True  = SVD on all genes in raw.X (DEFAULT — matches notebook Cell 9)
+# False = SVD on HVG subset only (diagnostic)
+FULL_GENE_SVD = True
 # ══════════════════════════════════════════════════════════════════════════════
 
 
@@ -122,6 +124,15 @@ def run_svd_folds(
         else:
             hvg_matrix_full = np.array(X)
         print("[svd] Using z-scored adata.X (scaled HVGs from preprocess.py)")
+    elif FULL_GENE_SVD:
+        # Use all genes from raw.X — diagnostic mode, no HVG filtering
+        gene_names = adata.raw.var_names.tolist()
+        raw_X = adata.raw.X
+        if scipy.sparse.issparse(raw_X):
+            hvg_matrix_full = np.asarray(raw_X.todense())
+        else:
+            hvg_matrix_full = np.array(raw_X)
+        print(f"[svd] Using full-gene log-norm matrix ({len(gene_names)} genes)")
     else:
         # Pull log-norm counts from raw and subset to HVGs.
         # adata.raw.var does not carry 'highly_variable' (frozen before HVG step).
@@ -137,11 +148,14 @@ def run_svd_folds(
             hvg_matrix_full = np.array(raw_X[:, hvg_mask])
         print("[svd] Using unscaled log-norm HVG matrix from adata.raw.X")
 
-    # ── Stratified k-fold split by condition ──────────────────────────────────
+    # ── Stratified k-fold split ───────────────────────────────────────────────
+    # Ground truth (notebook Cell 7): second argument to skf.split() is
+    # np.zeros(n_samples) — i.e. no real stratification, pure random split.
+    # This matches the notebook exactly; do NOT stratify by condition here.
     conditions = adata.obs["condition"].values
     skf = StratifiedKFold(n_splits=N_FOLDS, random_state=RANDOM_STATE, shuffle=True)
     fold_ids = np.zeros(adata.n_obs, dtype=int)
-    for fold_i, (_, test_idx) in enumerate(skf.split(np.zeros(adata.n_obs), conditions)):
+    for fold_i, (_, test_idx) in enumerate(skf.split(np.zeros(adata.n_obs), np.zeros(adata.n_obs))):
         fold_ids[test_idx] = fold_i
     adata.obs["fold_id"] = fold_ids
 
@@ -166,98 +180,6 @@ def run_svd_folds(
     print(f"[svd] SVD outputs saved → {output_dir}")
     return output_dir
 
-
-
-# ── 1b. SCREE PLOT ─────────────────────────────────────────────────────────────────────────────
-
-def plot_scree(
-    svd_dir: str | Path,
-    output_dir: str | Path | None = None,
-    n_pcs: int = 50,
-) -> plt.Figure:
-    """
-    Load per-fold singular values, average across folds, and plot the
-    eigenspectrum on both log and linear scales (matching Fig. 1E and S9A).
-
-    Singular values s are squared and normalized to sum to 1 to give
-    fraction of variance explained per PC, matching scanpy convention.
-
-    Parameters
-    ----------
-    svd_dir : str or Path
-        Directory containing svd_fold*.npz files from run_svd_folds().
-    output_dir : str or Path or None
-        If provided, saves scree_plot.pdf and scree_values.csv here.
-    n_pcs : int
-        Number of PCs to show on the linear-scale panel. Default 50.
-
-    Returns
-    -------
-    matplotlib Figure
-    """
-    svd_dir = Path(svd_dir)
-
-    # Load singular values from all folds and average
-    s_per_fold = []
-    for fold_i in range(N_FOLDS):
-        svd = np.load(svd_dir / f"svd_fold{fold_i}.npz")
-        s_per_fold.append(svd["s"])
-
-    # Truncate to shortest fold (cell counts differ slightly per fold)
-    min_len = min(len(s) for s in s_per_fold)
-    s_stack = np.stack([s[:min_len] for s in s_per_fold], axis=0)
-    s_mean = s_stack.mean(axis=0)
-    s_std  = s_stack.std(axis=0)
-
-    # Convert to variance explained: s^2 / sum(s^2)
-    var_explained = s_mean ** 2 / (s_mean ** 2).sum()
-    var_std_norm  = (2 * s_mean * s_std) / (s_mean ** 2).sum()
-
-    n_total = len(var_explained)
-    pcs = np.arange(1, n_total + 1)
-
-    # Save CSV
-    scree_df = pd.DataFrame({
-        "PC"              : pcs,
-        "variance_explained" : var_explained,
-        "std"             : var_std_norm,
-    })
-
-    if output_dir is not None:
-        output_dir = Path(output_dir)
-        output_dir.mkdir(parents=True, exist_ok=True)
-        scree_df.to_csv(output_dir / "scree_values.csv", index=False)
-        print(f"[scree] CSV saved -> {output_dir / 'scree_values.csv'}")
-
-    # Plot: log scale (all PCs) + linear scale (top n_pcs)
-    fig, axes = plt.subplots(1, 2, figsize=(10, 4))
-
-    # Log scale — all PCs
-    axes[0].scatter(pcs, var_explained * 100,
-                    s=8, color="#153057", alpha=0.7, rasterized=True)
-    axes[0].set_xscale("log")
-    axes[0].set_yscale("log")
-    axes[0].set_xlabel("Principal component")
-    axes[0].set_ylabel("Variance explained (%)")
-    axes[0].set_title("Eigenspectrum (log scale)")
-    axes[0].spines[["top", "right"]].set_visible(False)
-
-    # Linear scale — top n_pcs only
-    axes[1].scatter(pcs[:n_pcs], var_explained[:n_pcs] * 100,
-                    s=10, color="#153057", alpha=0.8)
-    axes[1].set_xlabel("Principal component")
-    axes[1].set_ylabel("Variance explained (%)")
-    axes[1].set_title(f"Eigenspectrum (top {n_pcs} PCs, linear scale)")
-    axes[1].spines[["top", "right"]].set_visible(False)
-
-    plt.tight_layout()
-
-    if output_dir is not None:
-        fig.savefig(output_dir / "scree_plot.pdf", bbox_inches="tight", dpi=150)
-        print(f"[scree] Plot saved -> {output_dir / 'scree_plot.pdf'}")
-
-    plt.close(fig)
-    return fig
 
 
 # ── 2. COMPUTE MICDF ──────────────────────────────────────────────────────────
@@ -338,8 +260,10 @@ def compute_micdf(
                 raw_mi.loc[w, env] = sp.empiricalMI_masked(u_corr_sq, env_corr)
 
         # ── Normalize to CDF ──────────────────────────────────────────────────
-        # Prepend a zero row so every curve starts at 0, then divide each
-        # column by its own total — matching SCALES_Kfold.ipynb exactly.
+        # Ground truth (notebook Cell 27):
+        #   cumulative_mi = cumulative_mi_unscaled.loc[0:40] / cumulative_mi_unscaled.loc[40]
+        # Divide by the value at row index N_WINDOWS specifically (not iloc[-1],
+        # which would be the zero-prepended row 0 if indexing goes wrong).
         zero_row = pd.DataFrame(
             {env: [0.0] for env in all_envs}
         )
@@ -347,9 +271,10 @@ def compute_micdf(
             [zero_row, raw_mi.cumsum(axis=0)], axis=0
         ).reset_index(drop=True)
 
-        total = cumsum.iloc[-1].copy()
+        # Normalize by the value at row N_WINDOWS (index = N_WINDOWS after prepending zero)
+        total = cumsum.loc[N_WINDOWS].copy()
         total[total == 0] = 1   # avoid divide-by-zero on flat columns
-        micdf_fold = cumsum / total
+        micdf_fold = cumsum.loc[0:N_WINDOWS] / total
 
         micdf_per_fold.append(micdf_fold)
         print(f"[micdf] Fold {fold_i} complete")
@@ -358,7 +283,7 @@ def compute_micdf(
     concat_all = pd.concat(micdf_per_fold)
     mean_micdf = concat_all.groupby(concat_all.index).mean()
     std_micdf  = concat_all.groupby(concat_all.index).std()
-    ste_micdf  = std_micdf / np.sqrt(N_FOLDS)
+    ste_micdf  = std_micdf / N_FOLDS   # notebook Cell 30: ste = std / 6
 
     # ── Save ─────────────────────────────────────────────────────────────────
     if output_dir is not None:

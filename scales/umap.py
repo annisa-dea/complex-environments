@@ -1,28 +1,35 @@
 """
 umap.py
 -------
-Computes UMAP embedding and saves a wide-format CSV of coordinates + metadata.
+Computes UMAP embedding and scree plot from the standard scanpy PCA.
+
+Both run_umap() and plot_scree() operate on adata.obsm['X_pca'] /
+adata.uns['pca']['variance_ratio'] — the scanpy PCA run in preprocess.py
+(log-norm → HVG → scale → PCA). This is intentionally decoupled from the
+SVD run inside micdf.py, which operates on unscaled log-norm HVGs for the
+MI computation. The scree plot is a property of the data matrix and should
+match standard scRNA-seq convention for comparability with the literature.
 
 Usage
 -----
-    from scales.umap import run_umap
+    from scales.umap import run_umap, plot_scree
 
-    adata = run_umap(
-        adata,
-        output_dir = "/path/to/figures",
-    )
+    adata = run_umap(adata, output_dir="/path/to/figures")
+    fig   = plot_scree(adata, output_dir="/path/to/figures")
 """
 
 import anndata as ad
+import numpy as np
 import scanpy as sc
 import pandas as pd
 import matplotlib.pyplot as plt
 from pathlib import Path
 
 
-# ── UMAP PARAMETERS ──────────────────────────────────────────────────────────
+# ── UMAP / SCREE PARAMETERS ───────────────────────────────────────────────────
 N_NEIGHBORS    = 15
 N_PCS_FOR_UMAP = 50    # must be <= N_PCA_COMPS set in preprocess.py
+N_PCS_SCREE    = 50    # number of PCs shown on the scree plot
 RANDOM_SEED    = 12345
 
 
@@ -112,3 +119,80 @@ def run_umap(
               f"({len(conditions)} conditions, {len(prism_df)} rows)")
 
     return adata
+
+
+# ── SCREE PLOT ────────────────────────────────────────────────────────────────
+
+def plot_scree(
+    adata: ad.AnnData,
+    output_dir: str | Path | None = None,
+    n_pcs: int = N_PCS_SCREE,
+) -> plt.Figure:
+    """
+    Plot the PCA scree (variance explained per PC) from the standard scanpy
+    PCA stored in adata.uns['pca']['variance_ratio'].
+
+    This is intentionally independent of the SVD run in micdf.py. The scree
+    characterizes the data matrix and should match standard scRNA-seq
+    convention (log-norm → HVG → scale → PCA via sc.tl.pca).
+
+    Parameters
+    ----------
+    adata : AnnData
+        Must have adata.uns['pca']['variance_ratio'] populated by sc.tl.pca().
+    output_dir : str or Path or None
+        If provided, saves scree_plot.pdf and scree_values.csv here.
+    n_pcs : int
+        Number of PCs to display. Default N_PCS_SCREE (50).
+
+    Returns
+    -------
+    matplotlib Figure
+    """
+    if "pca" not in adata.uns or "variance_ratio" not in adata.uns["pca"]:
+        raise ValueError(
+            "adata.uns['pca']['variance_ratio'] not found. "
+            "Run sc.tl.pca(adata) before calling plot_scree()."
+        )
+
+    var_ratio = adata.uns["pca"]["variance_ratio"]
+    n_pcs     = min(n_pcs, len(var_ratio))
+    pcs       = np.arange(1, n_pcs + 1)
+    vr        = var_ratio[:n_pcs]
+
+    fig, axes = plt.subplots(1, 2, figsize=(8, 3.5))
+
+    # Linear scale
+    axes[0].plot(pcs, vr, color="#333333", linewidth=1.2)
+    axes[0].set_xlabel("PC")
+    axes[0].set_ylabel("Fraction variance explained")
+    axes[0].set_xlim(1, n_pcs)
+    axes[0].set_ylim(0, None)
+    axes[0].spines[["top", "right"]].set_visible(False)
+
+    # Log scale — better resolves the long tail
+    axes[1].plot(pcs, vr, color="#333333", linewidth=1.2)
+    axes[1].set_yscale("log")
+    axes[1].set_xlabel("PC")
+    axes[1].set_ylabel("Fraction variance explained (log)")
+    axes[1].set_xlim(1, n_pcs)
+    axes[1].spines[["top", "right"]].set_visible(False)
+
+    fig.suptitle("Scree plot (scanpy PCA)", fontsize=10)
+    plt.tight_layout()
+
+    if output_dir is not None:
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        fig.savefig(output_dir / "scree_plot.pdf", bbox_inches="tight", dpi=150)
+        print(f"[scree] Figure saved → {output_dir / 'scree_plot.pdf'}")
+
+        pd.DataFrame({
+            "PC"              : pcs,
+            "variance_ratio"  : vr,
+            "cumulative_ratio": np.cumsum(vr),
+        }).to_csv(output_dir / "scree_values.csv", index=False)
+        print(f"[scree] Values saved → {output_dir / 'scree_values.csv'}")
+
+    return fig
