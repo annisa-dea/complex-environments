@@ -2,6 +2,7 @@
 
 Reproducible analysis pipeline for the SCALES scRNA-seq paper.  
 Goes from a directory of CellRanger `.h5` files to all figures and CSVs in the paper.
+All raw sequencing data are available via GEO accesion [GSE327265]
 
 ## Repository layout
 
