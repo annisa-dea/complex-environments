@@ -11,3 +11,5 @@ __pycache__/
 
 # Results
 results/logs/
+logs/
+results/
