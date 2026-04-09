@@ -31,6 +31,11 @@ Output layout
         └── top_genes_pc0-4.csv
 """
 
+import warnings #expected output when performing functions on sparse matrices
+warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings("ignore", category=UserWarning)
+warnings.filterwarnings("ignore", message=".*densified.*")
+
 import argparse
 from pathlib import Path
 
