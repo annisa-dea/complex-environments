@@ -1,0 +1,139 @@
+/Users/annisa/Desktop/dea-et-al-2026/scales/preprocess.py:124: FutureWarning: The default of observed=False is deprecated and will be changed to True in a future version of pandas. Pass observed=False to retain current behavior or observed=True to adopt the future default and silence this warning.
+  obs.groupby("condition")
+/Users/annisa/micromamba/envs/scales/lib/python3.11/functools.py:909: UserWarning: zero-centering a sparse array/matrix densifies it.
+  return dispatch(args[0].__class__)(*args, **kw)
+/Users/annisa/Desktop/dea-et-al-2026/scales/umap.py:108: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  prism_df = pd.concat(blocks, ignore_index=True)
+[config] FULL_GENE_SVD = True (all genes, not just HVGs)
+
+═══ Step 1: Merge h5 files ═══
+[merge] ancestry='anc' → 20 conditions selected
+[merge] Merged AnnData: 62348 cells x 7127 genes
+[merge] Conditions loaded: 20
+[merge] Saved → results/anc_fullgene/merged.h5ad
+
+═══ Step 2: Preprocess ═══
+[preprocess] Input: 62348 cells x 7127 genes
+[preprocess] n_genes     — min: 226  median: 835  max: 4434
+[preprocess] total_counts — min: 380  median: 1525  max: 32016
+[preprocess] Cells before filter : 62348
+[preprocess] Cells after filter  : 62340  (0.0% removed)
+[preprocess] Genes retained: 6952
+
+[preprocess] Post-filter per-condition summary:
+       condition  n_cells  min_genes  mean_genes  median_genes  max_genes  median_umi  pct_cells_above_500g
+     anc_sceg-30   3353.0      280.0      1033.3         902.0     3190.0      1688.0                  85.5
+     anc_sceg-37   2211.0      298.0      1251.9        1172.0     3784.0      2416.0                  95.6
+         anc_sdc   2313.0      334.0      1237.0        1219.0     3555.0      3119.0                  91.2
+      anc_sdc-37   2760.0      363.0      1135.0         899.0     3969.0      1427.5                  85.9
+    anc_sdc-diam   2056.0      276.0      1096.8         843.5     3405.0      1620.5                  79.9
+    anc_sdc-h2o2   2813.0      304.0      1349.3        1362.0     3752.0      4314.0                  92.9
+     anc_sdc-kcl   2756.0      315.0      1416.0        1348.5     3971.0      3271.0                  87.3
+anc_sdc-kcl-diam   3191.0      309.0      1340.6        1303.0     3597.0      2958.0                  93.2
+anc_sdc-kcl-h2o2   3844.0      314.0      1289.7        1206.0     3581.0      2643.5                  87.8
+    anc_sdc-sorb   3123.0      336.0       976.2         939.0     3061.0      1701.0                  90.1
+         anc_ypd   2844.0      325.0       951.0         744.0     2997.0      1180.0                  78.8
+      anc_ypd-37   1534.0      311.0       625.4         522.0     3215.0       828.0                  54.6
+    anc_ypd-diam   1896.0      265.0       456.7         311.0     3021.0       415.5                  17.0
+    anc_ypd-h2o2   2862.0      346.0      1216.0        1217.0     3244.0      2506.5                  86.5
+     anc_ypd-kcl   2846.0      316.0       822.3         653.0     3605.0      1262.5                  78.1
+anc_ypd-kcl-diam   6343.0      280.0       412.2         358.0     3008.0       590.0                  11.5
+anc_ypd-kcl-h2o2   5440.0      332.0      1076.3         960.5     3850.0      1968.0                  82.0
+    anc_ypd-sorb   4236.0      323.0       869.8         679.5     3640.0      1286.0                  75.2
+     anc_ypeg-30   3659.0      307.0      1225.5        1078.0     3265.0      2178.0                  87.4
+     anc_ypeg-37   2260.0      226.0       757.2         675.0     3079.0      1113.0                  71.5
+[preprocess] Post-filter CSV saved -> results/anc_fullgene/qc/qc_postfilter_per_condition.csv
+
+[preprocess] HVGs selected: 862
+
+[preprocess] Final AnnData: 62340 cells x 862 HVGs
+[preprocess] Saved -> results/anc_fullgene/processed.h5ad
+
+═══ Step 3: UMAP ═══
+[umap] Computing neighbors (n_neighbors=15, n_pcs=50)
+[umap] UMAP complete
+[umap] Plot saved → umap_condition.pdf
+[umap] CSV saved -> results/anc_fullgene/umap/umap_coords.csv  (62340 rows)
+[umap] Prism CSV saved -> results/anc_fullgene/umap/umap_prism.csv  (20 conditions, 62340 rows)
+
+═══ Step 4: SVD per fold ═══
+[svd] Using full-gene log-norm matrix (6952 genes)
+[svd] Fold 0: 10390 cells × 6952 HVGs
+[svd] Fold 1: 10390 cells × 6952 HVGs
+[svd] Fold 2: 10390 cells × 6952 HVGs
+[svd] Fold 3: 10390 cells × 6952 HVGs
+[svd] Fold 4: 10390 cells × 6952 HVGs
+[svd] Fold 5: 10390 cells × 6952 HVGs
+[svd] SVD outputs saved → results/anc_fullgene/svd
+
+═══ Step 4b: Scree plot ═══
+[scree] CSV saved -> results/anc_fullgene/svd/scree_values.csv
+[scree] Plot saved -> results/anc_fullgene/svd/scree_plot.pdf
+
+═══ Step 5: Compute MICDF ═══
+[micdf] Fold 0 complete
+[micdf] Fold 1 complete
+[micdf] Fold 2 complete
+[micdf] Fold 3 complete
+[micdf] Fold 4 complete
+[micdf] Fold 5 complete
+[micdf] CSVs saved → results/anc_fullgene/micdf
+
+═══ Step 6: Plot MICDF ═══
+[plot] Figure saved → results/anc_fullgene/micdf/micdf_plot.pdf
+
+═══ Step 7: Top genes per PC ═══
+[top_genes] Saved → results/anc_fullgene/micdf/top_genes_pc0-4.csv
+ PC  rank     gene   loading
+  0     1     TDH3  0.117225
+  0     2    CCW12  0.103626
+  0     3     FBA1  0.097044
+  0     4     PDC1  0.096652
+  0     5     CWP2  0.091941
+  0     6     ENO2  0.089721
+  0     7 21S_RRNA  0.086972
+  0     8    CDC19  0.085188
+  0     9     ADH1  0.082119
+  0    10     GPM1  0.079956
+  1     1    HSP26 -0.093619
+  1     2    HSP12 -0.092721
+  1     3    RPL9A  0.089141
+  1     4    RPS31  0.084669
+  1     5     TDH1 -0.082381
+  1     6    RPS9B  0.081339
+  1     7   RPL18A  0.079314
+  1     8    RPS13  0.074160
+  1     9     RPS2  0.073672
+  1    10     SSA1 -0.073471
+  2     1 21S_RRNA -0.123592
+  2     2 15S_RRNA -0.106312
+  2     3     HOR7 -0.096805
+  2     4      AI1 -0.091519
+  2     5     SHM2  0.089859
+  2     6     OLI1 -0.087412
+  2     7   NCE103 -0.083442
+  2     8     DDR2 -0.081754
+  2     9     ADH2 -0.080463
+  2    10     CWP2 -0.080260
+  3     1     OLI1  0.150095
+  3     2 21S_RRNA  0.145074
+  3     3     COX1  0.132221
+  3     4      AI1  0.130270
+  3     5 15S_RRNA  0.119126
+  3     6      AI2  0.112696
+  3     7     DBP2  0.093269
+  3     8 AI5_BETA  0.092703
+  3     9      AI4  0.091283
+  3    10     NSR1  0.091282
+  4     1     AHP1 -0.121085
+  4     2     ZRT1 -0.119460
+  4     3     CIS3  0.119058
+  4     4     OPI3 -0.101782
+  4     5     MET6 -0.100513
+  4     6     INO1 -0.096283
+  4     7     CYC1  0.095774
+  4     8     PUT4 -0.087834
+  4     9     ALD6 -0.086794
+  4    10     CRH1  0.081552
+
+✓ Pipeline complete. All outputs in: results/anc_fullgene
