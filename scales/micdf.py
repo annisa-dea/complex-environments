@@ -49,7 +49,7 @@ import spipy as sp
 # Edit here if you need to add or remove conditions.
 # 'shuffled' is always included as the null reference and is NOT plotted.
 
-ENV_LIST = ["rich_media", "30c", "dglucose", "ros", "osmolytes"]
+ENV_LIST = ["rich_media", "30c", "dglucose", "ros", "osmolytes", "ancestry"]
 SHUFFLED_LABEL = "shuffled"
 
 # Color map for plotting — add entries here if ENV_LIST is extended
